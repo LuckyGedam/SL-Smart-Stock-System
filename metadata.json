@@ -1,0 +1,6 @@
+{
+  "name": "Smart Stock Priority System (SSPS)",
+  "description": "Showroom sales priority and recommendation system for SL Crockeries to move old stock, reduce overstock, and optimize showroom presentations.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
