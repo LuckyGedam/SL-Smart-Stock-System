@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import traceback
+
 
 import jwt
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -184,19 +186,28 @@ def upload_products(
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported")
 
+    print("[DEBUG] Upload started")
+    print(f"[DEBUG] Excel file received filename={file.filename}")
+
     contents = file.file.read()
 
     try:
         rows = read_excel_rows(contents)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Failed to read file: {e}")
+    except Exception:
+        traceback.print_exc()
+        raise
+
+    print(f"[DEBUG] Number of rows={len(rows)}")
+    if rows:
+        print(f"[DEBUG] First parsed excel row={rows[0]}")
 
     if not rows:
         raise HTTPException(status_code=422, detail="No valid rows found in file. Check column headers.")
 
     payloads = build_product_payloads(rows)
+    if payloads:
+        print(f"[DEBUG] First ProductCreate payload model_dump={payloads[0].model_dump()}")
+
     inserted = 0
     updated = 0
     skipped = 0
@@ -214,33 +225,52 @@ def upload_products(
         for row in db.execute(stmt).scalars().all():
             existing_map[row.sku.strip().upper()] = row
 
+    print(f"[DEBUG] Existing SKU lookup size={len(existing_map)}")
+
     from ..services.product_service import _build  # reuse mapping logic
+
 
     # One transaction, one commit. No per-row refresh().
     try:
         with db.begin():
             for payload in payloads:
+                sku = payload.sku.strip().upper() if payload.sku else ""
                 try:
-                    sku = payload.sku.strip().upper()
+                    print(f"[DEBUG] Processing SKU={sku}")
                     existing = existing_map.get(sku)
 
                     if existing:
-                        updates = _build(ProductUpdate(**payload.model_dump()), existing=existing)
+                        print("[DEBUG] Existing SKU lookup found")
+                        payload_dump = payload.model_dump()
+                        print(f"[DEBUG] ProductCreate.model_dump() for SKU={sku}: {payload_dump}")
+
+                        updates = _build(ProductUpdate(**payload_dump), existing=existing)
+                        print(f"[DEBUG] _build() output for SKU={sku}: {updates}")
+
                         for k, v in updates.items():
                             setattr(existing, k, v)
                         existing.updated_at = datetime.utcnow()
                         updated += 1
                     else:
                         new_data = _build(payload, existing=None)
+                        print(f"[DEBUG] _build() output for new SKU={sku}: {new_data}")
+
                         from ..models.product import ProductORM
+                        print(f"[DEBUG] ProductORM(**new_data) dict for SKU={sku}: {new_data}")
+
+                        print(f"[DEBUG] Before db.add() for SKU={sku}")
                         db.add(ProductORM(**new_data))
                         inserted += 1
                 except Exception as e:
-                    skipped += 1
-                    error_details.append(f"SKU {payload.sku}: {e}")
+                    print(f"[DEBUG] Exception while processing SKU={sku} exception_type={type(e)} exception_message={e}")
+                    traceback.print_exc()
+                    # Do not swallow: re-raise original exception
+                    raise
 
-        # after successful commit
+        print("[DEBUG] After transaction block (db.begin) completes successfully")
+
         return {
+
             "message":          "Upload completed",
             "inserted":         inserted,
             "updated":          updated,
@@ -249,7 +279,9 @@ def upload_products(
             "error_details":    error_details[:10],
             "expected_columns": EXPECTED_COLUMNS,
         }
-    except Exception as e:
-        # db.begin() will rollback automatically
-        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+    except Exception:
+        print("[DEBUG] Upload failed in outer handler")
+        traceback.print_exc()
+        raise
+
 

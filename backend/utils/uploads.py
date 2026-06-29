@@ -33,9 +33,14 @@ def _normalize(s: str) -> str:
     return str(s).lower().replace(" ", "").replace("_", "").replace("-", "").replace("(", "").replace(")", "")
 
 def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
+    import traceback
+
+    print("[DEBUG] Excel parser started")
     workbook = load_workbook(filename=io.BytesIO(file_bytes), data_only=True)
     sheet = workbook.active
     rows = list(sheet.iter_rows(values_only=True))
+    print(f"[DEBUG] Excel rows read (including header/empty): {len(rows)}")
+
     if not rows:
         return []
 
@@ -63,9 +68,12 @@ def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
     col_idx = {_normalize(h): i for i, h in enumerate(headers) if h}
 
     products: list[dict[str, Any]] = []
+
+    parsed_first = False
     for row in rows[header_row_idx + 1:]:
         if not any(cell is not None and str(cell).strip() for cell in row):
             continue
+
 
         def get(key: str):
             idx = col_idx.get(key)
@@ -97,7 +105,7 @@ def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
         url_val = get("url")
         url_str = str(url_val or "").strip() if url_val is not None else ""
 
-        products.append({
+        product_dict = {
             "sku"          : sku,
             "name"         : name,
 
@@ -112,9 +120,17 @@ def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
 
             "location"      : "",
 
-        })
+        }
 
+        if not parsed_first:
+            print(f"[DEBUG] Parsed excel row (first)={product_dict}")
+            parsed_first = True
+
+        products.append(product_dict)
+
+    print(f"[DEBUG] Parsed {len(products)} product dict rows")
     return products
+
 
 
 def build_product_payloads(rows: list[dict[str, Any]]) -> list[ProductCreate]:
