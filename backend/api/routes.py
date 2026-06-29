@@ -230,46 +230,48 @@ def upload_products(
     from ..services.product_service import _build  # reuse mapping logic
 
 
-    # One transaction, one commit. No per-row refresh().
+    # FastAPI dependency provides an active Session/transaction context.
+    # Do NOT open another transaction block.
     try:
-        with db.begin():
-            for payload in payloads:
-                sku = payload.sku.strip().upper() if payload.sku else ""
-                try:
-                    print(f"[DEBUG] Processing SKU={sku}")
-                    existing = existing_map.get(sku)
+        for payload in payloads:
+            sku = payload.sku.strip().upper() if payload.sku else ""
+            try:
+                print(f"[DEBUG] Processing SKU={sku}")
+                existing = existing_map.get(sku)
 
-                    if existing:
-                        print("[DEBUG] Existing SKU lookup found")
-                        payload_dump = payload.model_dump()
-                        print(f"[DEBUG] ProductCreate.model_dump() for SKU={sku}: {payload_dump}")
+                if existing:
+                    print("[DEBUG] Existing SKU lookup found")
+                    payload_dump = payload.model_dump()
+                    print(f"[DEBUG] ProductCreate.model_dump() for SKU={sku}: {payload_dump}")
 
-                        updates = _build(ProductUpdate(**payload_dump), existing=existing)
-                        print(f"[DEBUG] _build() output for SKU={sku}: {updates}")
+                    updates = _build(ProductUpdate(**payload_dump), existing=existing)
+                    print(f"[DEBUG] _build() output for SKU={sku}: {updates}")
 
-                        for k, v in updates.items():
-                            setattr(existing, k, v)
-                        existing.updated_at = datetime.utcnow()
-                        updated += 1
-                    else:
-                        new_data = _build(payload, existing=None)
-                        print(f"[DEBUG] _build() output for new SKU={sku}: {new_data}")
+                    for k, v in updates.items():
+                        setattr(existing, k, v)
+                    existing.updated_at = datetime.utcnow()
+                    updated += 1
+                else:
+                    new_data = _build(payload, existing=None)
+                    print(f"[DEBUG] _build() output for new SKU={sku}: {new_data}")
 
-                        from ..models.product import ProductORM
-                        print(f"[DEBUG] ProductORM(**new_data) dict for SKU={sku}: {new_data}")
+                    from ..models.product import ProductORM
+                    print(f"[DEBUG] ProductORM(**new_data) dict for SKU={sku}: {new_data}")
 
-                        print(f"[DEBUG] Before db.add() for SKU={sku}")
-                        db.add(ProductORM(**new_data))
-                        inserted += 1
-                except Exception as e:
-                    print(f"[DEBUG] Exception while processing SKU={sku} exception_type={type(e)} exception_message={e}")
-                    traceback.print_exc()
-                    # Do not swallow: re-raise original exception
-                    raise
+                    print(f"[DEBUG] Before db.add() for SKU={sku}")
+                    db.add(ProductORM(**new_data))
+                    inserted += 1
+            except Exception as e:
+                print(f"[DEBUG] Exception while processing SKU={sku} exception_type={type(e)} exception_message={e}")
+                traceback.print_exc()
+                raise
 
-        print("[DEBUG] After transaction block (db.begin) completes successfully")
+        print("[DEBUG] Before db.commit()")
+        db.commit()
+        print("[DEBUG] After db.commit()")
 
         return {
+
 
             "message":          "Upload completed",
             "inserted":         inserted,
@@ -282,6 +284,8 @@ def upload_products(
     except Exception:
         print("[DEBUG] Upload failed in outer handler")
         traceback.print_exc()
+        db.rollback()
         raise
+
 
 
