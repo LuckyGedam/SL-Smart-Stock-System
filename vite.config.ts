@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // In dev: proxy /api calls to FastAPI backend
         '/api': {
-          target: env.VITE_API_URL || 'http://localhost:8000',
+          target: env.VITE_API_URL || 'https://sl-smart-stock-system-production.up.railway.app/api',
           changeOrigin: true,
         },
       },

@@ -1,13 +1,27 @@
 import axios, { AxiosHeaders, AxiosError, type AxiosRequestConfig } from 'axios';
 import { Product } from '../types';
 
-const BASE_URL = 'http://localhost:8000/api';
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL?: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://sl-smart-stock-system-production.up.railway.app/api";
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    "Content-Type": "application/json",
+  },
   timeout: 15000,
-  withCredentials: false,   // must be false when backend uses allow_origins=["*"]
+  withCredentials: false,
 });
 
 // Attach token to every request
