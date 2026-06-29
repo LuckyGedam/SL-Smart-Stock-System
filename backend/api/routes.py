@@ -82,6 +82,7 @@ def health() -> dict[str, Any]:
 # ── Product routes ─────────────────────────────────────────────────────────────
 
 def serialize_product(p: Any) -> dict[str, Any]:
+    # ProductOut expects datetime objects for created_at/updated_at.
     return {
         "id":           p.id,
         "sku":          p.sku,
@@ -97,9 +98,11 @@ def serialize_product(p: Any) -> dict[str, Any]:
         "priority":     p.priority,
         "age_days":     p.age_days,
         "status":       p.status,
-        "created_at":   p.created_at.isoformat() if p.created_at else None,
-        "updated_at":   p.updated_at.isoformat() if p.updated_at else None,
+        "created_at":   p.created_at,
+        "updated_at":   p.updated_at,
     }
+
+
 
 
 @router.get("/products")
@@ -123,11 +126,14 @@ def create_product_route(
     product: ProductCreate,
     db:      Session = Depends(get_db),
     _user:   dict[str, Any] = Depends(get_current_user),
-) -> Any:
+) -> ProductOut:
     existing = get_product_by_sku(db, product.sku)
     if existing:
-        return update_product(db, product.sku, ProductUpdate(**product.model_dump()))
-    return create_product(db, product)
+        p = update_product(db, product.sku, ProductUpdate(**product.model_dump()))
+        return serialize_product(p)  # type: ignore[arg-type]
+    p = create_product(db, product)
+    return serialize_product(p)  # type: ignore[arg-type]
+
 
 
 @router.put("/products/{sku}", response_model=ProductOut)
@@ -136,11 +142,14 @@ def update_product_route(
     product: ProductUpdate,
     db:      Session = Depends(get_db),
     _user:   dict[str, Any] = Depends(get_current_user),
-) -> Any:
+) -> ProductOut:
     existing = get_product_by_sku(db, sku)
     if not existing:
         raise HTTPException(status_code=404, detail=f"Product '{sku}' not found")
-    return update_product(db, sku, product)
+    p = update_product(db, sku, product)
+    # p is guaranteed non-null because we checked existing.
+    return serialize_product(p)  # type: ignore[arg-type]
+
 
 
 @router.delete("/products/{sku}", status_code=204)
@@ -179,28 +188,59 @@ def upload_products(
         raise HTTPException(status_code=422, detail="No valid rows found in file. Check column headers.")
 
     payloads = build_product_payloads(rows)
-    inserted = updated = skipped = 0
+    inserted = 0
+    updated = 0
+    skipped = 0
     error_details: list[str] = []
 
-    for payload in payloads:
-        try:
-            existing = get_product_by_sku(db, payload.sku)
-            if existing:
-                update_product(db, payload.sku, ProductUpdate(**payload.model_dump()))
-                updated += 1
-            else:
-                create_product(db, payload)
-                inserted += 1
-        except Exception as e:
-            skipped += 1
-            error_details.append(f"SKU {payload.sku}: {e}")
+    # Prefetch existing products by SKU to avoid N queries.
+    skus = [p.sku.strip().upper() for p in payloads if p.sku]
+    existing_map: dict[str, Any] = {}
 
-    return {
-        "message":          "Upload completed",
-        "inserted":         inserted,
-        "updated":          updated,
-        "skipped":          skipped,
-        "errors":           len(error_details),
-        "error_details":    error_details[:10],
-        "expected_columns": EXPECTED_COLUMNS,
-    }
+    if skus:
+        from sqlalchemy import select
+        from ..models.product import ProductORM
+
+        stmt = select(ProductORM).where(ProductORM.sku.in_(set(skus)))
+        for row in db.execute(stmt).scalars().all():
+            existing_map[row.sku.strip().upper()] = row
+
+    from ..services.product_service import _build  # reuse mapping logic
+
+    # One transaction, one commit. No per-row refresh().
+    try:
+        with db.begin():
+            for payload in payloads:
+                try:
+                    sku = payload.sku.strip().upper()
+                    existing = existing_map.get(sku)
+
+                    if existing:
+                        updates = _build(ProductUpdate(**payload.model_dump()), existing=existing)
+                        for k, v in updates.items():
+                            setattr(existing, k, v)
+                        existing.updated_at = datetime.utcnow()
+                        updated += 1
+                    else:
+                        new_data = _build(payload, existing=None)
+                        from ..models.product import ProductORM
+                        db.add(ProductORM(**new_data))
+                        inserted += 1
+                except Exception as e:
+                    skipped += 1
+                    error_details.append(f"SKU {payload.sku}: {e}")
+
+        # after successful commit
+        return {
+            "message":          "Upload completed",
+            "inserted":         inserted,
+            "updated":          updated,
+            "skipped":          skipped,
+            "errors":           len(error_details),
+            "error_details":    error_details[:10],
+            "expected_columns": EXPECTED_COLUMNS,
+        }
+    except Exception as e:
+        # db.begin() will rollback automatically
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
