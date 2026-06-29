@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router as api_router
+from .config import settings
 from .database import init_db
+
 
 app = FastAPI(title="Smart Stock Priority System API", version="1.0.0")
 
