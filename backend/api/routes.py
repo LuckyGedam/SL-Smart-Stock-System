@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..schemas.product import ProductCreate, ProductListResponse, ProductOut, ProductUpdate
+from ..schemas.product import ProductCreate, ProductOut, ProductUpdate
+
 from ..services.product_service import (
     create_product,
     delete_product,
