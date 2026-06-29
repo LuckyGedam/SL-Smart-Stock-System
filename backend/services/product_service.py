@@ -56,8 +56,11 @@ def _build(data: ProductCreate | ProductUpdate | dict, existing: ProductORM | No
         "status"       : _status(stock, age_days),
         "price"        : float(get("price") or 0),
         "location"     : get("location"),
-        "image"        : get("image"),
+        "image_url"   : get("image_url") or get("image"),
+        "image"       : get("image") or get("image_url"),
     }
+
+
 
 
 def create_product(db: Session, payload: ProductCreate) -> ProductORM:

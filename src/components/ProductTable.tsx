@@ -9,7 +9,8 @@ interface ProductTableProps {
   onQuickShow: (product: ProductWithRec) => void;
 }
 
-export const ProductTable = ({
+export const ProductTable: React.FC<ProductTableProps> = ({
+
   products,
   onSelectProduct,
   userRole,
@@ -80,7 +81,6 @@ export const ProductTable = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      
       {/* Table Header Controls */}
       <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -153,7 +153,7 @@ export const ProductTable = ({
               {sortedProducts.map((p) => {
                 const isUrgent = p.rec.badgeColor === 'orange';
                 return (
-                  <tr 
+                  <tr
                     key={p.sku}
                     onClick={() => onSelectProduct(p)}
                     className={`hover:bg-amber-50/40 transition cursor-pointer ${
@@ -163,7 +163,16 @@ export const ProductTable = ({
                     {/* Image */}
                     <td className="py-3 px-4">
                       <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0 shadow-sm relative">
-                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                        <img
+                          src={p.image_url || p.image || "/placeholder.png"}
+                          alt={p.name}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.png";
+                          }}
+                          className="w-full h-full object-cover"
+                        />
                         {isUrgent && (
                           <div className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] font-black px-1 rounded-bl">
                             ★
@@ -262,13 +271,26 @@ export const ProductTable = ({
                 key={p.sku}
                 onClick={() => onSelectProduct(p)}
                 className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-md ${
-                  p.currentStock === 0 ? 'border-red-200 bg-red-50/10' : isUrgent ? 'border-orange-400 bg-orange-50/20 ring-1 ring-orange-400/30' : 'border-slate-200'
+                  p.currentStock === 0
+                    ? 'border-red-200 bg-red-50/10'
+                    : isUrgent
+                    ? 'border-orange-400 bg-orange-50/20 ring-1 ring-orange-400/30'
+                    : 'border-slate-200'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
-                      <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                        <img
+                          src={p.image_url || p.image || '/placeholder.png'}
+                          alt={p.name}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(e)=>{
+                            e.currentTarget.src="/placeholder.png";
+                          }}
+                          className="w-full h-full object-cover"
+                        />
                     </div>
                     <div className="text-right">
                       <span className={`inline-block px-2 py-0.5 rounded-lg text-[10px] font-black border ${getBadgeStyle(p.rec.badgeColor)}`}>
@@ -287,9 +309,7 @@ export const ProductTable = ({
                     <span className="text-xs font-bold text-slate-500">₹{p.price}</span>
                   </div>
 
-                  <h4 className="font-bold text-slate-900 text-sm line-clamp-2 mt-1">
-                    {p.name}
-                  </h4>
+                  <h4 className="font-bold text-slate-900 text-sm line-clamp-2 mt-1">{p.name}</h4>
 
                   <div className="grid grid-cols-2 gap-2 mt-3 p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold">
                     <div>
@@ -326,7 +346,7 @@ export const ProductTable = ({
           })}
         </div>
       )}
-
     </div>
   );
 };
+

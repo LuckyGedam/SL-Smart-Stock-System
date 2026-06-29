@@ -83,9 +83,14 @@ def health() -> dict[str, Any]:
 
 def serialize_product(p: Any) -> dict[str, Any]:
     # ProductOut expects datetime objects for created_at/updated_at.
+    # Prefer image_url; fall back to legacy image.
+    image_url = getattr(p, "image_url", None) or getattr(p, "image", None) or ""
+
     return {
         "id":           p.id,
+
         "sku":          p.sku,
+
         "name":         p.product_name,
         "category":     p.category,
         "subcategory":  p.subcategory,
@@ -94,9 +99,13 @@ def serialize_product(p: Any) -> dict[str, Any]:
         "price":        p.price,
         "location":     p.location,
         "dateAdded":    p.date_added,
+        "image_url":   image_url,
         "image":        p.image,
+
+
         "priority":     p.priority,
         "age_days":     p.age_days,
+
         "status":       p.status,
         "created_at":   p.created_at,
         "updated_at":   p.updated_at,

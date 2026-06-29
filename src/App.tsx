@@ -154,7 +154,7 @@ export default function App() {
             </span>
           </div>
           <span className="hidden md:inline font-mono text-[11px] text-slate-400">
-            SL Smart Sales Suite Module #1
+            SL Smart Sales System
           </span>
         </div>
 
@@ -212,10 +212,10 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 mt-12 py-6 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="font-semibold text-slate-700">
-            SL Crockeries • Smart Stock Priority System (SSPS v1.0 MVP)
+            SL Crockeries • Smart Stock Priority System 
           </p>
           <p>
-            No AI required in Version 1. Simple Rule-Based Priority Engine (&lt;1s response).
+            
           </p>
         </div>
       </footer>

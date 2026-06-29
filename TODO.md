@@ -1,25 +1,14 @@
-# TODO - Backend production fixes
+# TODO - image_url support
 
-## Step 1
-- [ ] Fix ProductOut mapping for POST/PUT by returning data consistent with response_model
-  - [ ] Update `serialize_product()` to return `created_at`/`updated_at` as datetime (not strings)
-  - [ ] Update POST/PUT routes to return `serialize_product(orm_obj)`
-
-## Step 2
-- [ ] Optimize POST /api/upload to prevent timeouts
-  - [ ] Prefetch existing products by SKU (single query)
-  - [ ] Bulk insert/update where possible
-  - [ ] Use one transaction, one commit, rollback on failure
-  - [ ] Remove per-row refresh()
-
-## Step 3
-- [ ] Run backend audit for response_model mismatch across routes
-  - [ ] Ensure every POST/PUT endpoint returns exactly the declared response_model
-
-## Step 4
-- [ ] Test endpoints end-to-end
-  - [ ] POST /api/products => 200
-  - [ ] POST /api/upload => 200
-  - [ ] GET /api/products => 200
-  - [ ] No ResponseValidationError, no SQLAlchemy/Pydantic errors
+- [x] Add `image_url` column to backend ProductORM (keep legacy `image`)
+- [x] Add `image_url` to frontend `Product` type
+- [x] Update Excel upload parser to read optional `url` column -> `image_url` (and sync legacy `image`)
+- [x] Update backend CRUD mapping (_build) to persist `image_url`
+- [x] Update API serialize_product to include `image_url`
+- [ ] Frontend: update all thumbnails to use `product.image_url || product.image` and fall back to `/placeholder.png` on error
+- [ ] Frontend: update ProductDetailModal image
+- [ ] Ensure backend schemas include `image_url` in ProductOut/Create/Update
+- [ ] Add PostgreSQL-safe migration / verify new column creation
+- [ ] Run quick backend compile checks and frontend typecheck/build if available
+- [ ] Commit all changes
 

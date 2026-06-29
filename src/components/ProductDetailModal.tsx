@@ -11,8 +11,8 @@ interface ProductDetailModalProps {
 export const ProductDetailModal = ({
   product,
   onClose,
-  onShowToCustomerConfirm
-}) => {
+  onShowToCustomerConfirm,
+}: ProductDetailModalProps) => {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   if (!product) return null;
@@ -63,7 +63,16 @@ export const ProductDetailModal = ({
           {/* Left Column: Product Image */}
           <div className="md:col-span-5 flex flex-col items-center">
             <div className="w-full aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-md relative">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              <img
+                src={product.image_url || product.image || "/placeholder.png"}
+                alt={product.name}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  e.currentTarget.src = "/placeholder.png";
+                }}
+                className="w-full h-full object-cover"
+              />
               <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur text-white px-2 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1">
                 <BarcodeIcon className="w-3.5 h-3.5" />
                 {product.barcode}

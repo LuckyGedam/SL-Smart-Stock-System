@@ -19,6 +19,11 @@ class ProductORM(Base):
     status       = Column(String(40),  nullable=True,  default="active")
     price        = Column(Float,       nullable=False, default=0.0)
     location     = Column(String(120), nullable=True)
+    # Backward-compatible image field (legacy)
     image        = Column(String(500), nullable=True)   # URL — increased length
+
+    # Preferred field name for uploaded Excel "url" column
+    image_url    = Column(String(500), nullable=True, default="")
+
     created_at   = Column(DateTime, default=datetime.utcnow)
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

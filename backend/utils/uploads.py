@@ -8,7 +8,8 @@ from openpyxl import load_workbook
 from ..schemas.product import ProductCreate
 
 
-EXPECTED_COLUMNS = ["SKU", "Product Name", "Category", "Stock", "Added Date", "Barcode"]
+EXPECTED_COLUMNS = ["SKU", "Product Name", "Category", "Stock", "Added Date", "Barcode", "url"]
+
 
 # All column aliases we accept
 COLUMN_MAP = {
@@ -18,6 +19,8 @@ COLUMN_MAP = {
     "stock"      : "Stock",
     "addeddate"  : "Added Date",
     "barcode"    : "Barcode",
+    "url"        : "url",
+
     # extras from our converter output (ignored, not required)
     "color"      : None,
     "itemtype"   : None,
@@ -50,6 +53,8 @@ def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
 
     # Check required columns present (loose match, any order)
     required = ["sku", "productname", "category", "stock", "addeddate", "barcode"]
+    # "url" column is optional (image_url); if missing we'll keep it empty.
+
     missing = [r for r in required if r not in normalized_headers]
     if missing:
         raise ValueError(f"Missing required columns: {missing}. Got: {headers}")
@@ -89,16 +94,24 @@ def read_excel_rows(file_bytes: bytes) -> list[dict[str, Any]]:
         except (ValueError, TypeError):
             price = 0.0
 
+        url_val = get("url")
+        url_str = str(url_val or "").strip() if url_val is not None else ""
+
         products.append({
             "sku"          : sku,
             "name"         : name,
+
             "category"     : str(get("category") or "General").strip(),
             "currentStock" : stock,
             "dateAdded"    : date_str,
             "barcode"      : str(get("barcode") or "").strip(),
             "price"        : price,
-            "image"        : "",
-            "location"     : "",
+            "image_url"    : url_str,
+            # legacy image field (kept in sync)
+            "image"         : url_str,
+
+            "location"      : "",
+
         })
 
     return products

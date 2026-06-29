@@ -12,7 +12,10 @@ export interface Product {
   dateAdded: string; // YYYY-MM-DD
   lastSoldDate?: string; // YYYY-MM-DD
   barcode: string;
-  image: string;
+  image_url?: string; // preferred
+  image: string; // legacy
+
+
   price: number;
   location?: string; // e.g. "Rack A3", "Display Shelf 2"
 }
