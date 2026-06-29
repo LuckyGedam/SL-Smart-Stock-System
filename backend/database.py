@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings
@@ -26,6 +26,23 @@ SessionLocal = sessionmaker(
 
 class Base(DeclarativeBase):
     pass
+
+
+def ensure_image_url_column() -> None:
+    """Idempotent PostgreSQL migration for legacy deployments.
+
+    Adds `products.image_url` if it does not exist.
+    Must never recreate tables or drop data.
+    """
+
+    if not settings.DATABASE_URL.startswith("postgres"):
+        # SQLite local dev uses Base.metadata.create_all; Postgres needs ALTER.
+        return
+
+    # Note: `image_url` should default to NULL (no DEFAULT clause).
+    stmt = text("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT")
+    with engine.begin() as conn:
+        conn.execute(stmt)
 
 
 def init_db() -> None:
